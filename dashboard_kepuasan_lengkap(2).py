@@ -1,6 +1,6 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
+import pandas as st
+import numpy 
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 from sklearn.cluster import KMeans
@@ -158,3 +158,4 @@ ax_rad.legend(loc="upper right")
 st.pyplot(fig_rad)
 
 st.success("📌 Segmentasi berhasil – siap untuk rekomendasi kebijakan")
+
