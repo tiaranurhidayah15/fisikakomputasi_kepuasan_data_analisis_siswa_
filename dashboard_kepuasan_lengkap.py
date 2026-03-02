@@ -1,162 +1,133 @@
 import streamlit as st
-import pandas as st
-import numpy 
+import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
-import statsmodels.api as sm
+import statsmodels.api as stats
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
-# ==========================================================
-# KONFIGURASI HALAMAN
-# ==========================================================
-st.set_page_config(page_title="Dashboard Simulasi siswa", layout="wide")
-st.title("📊 Dashboard Mini Kepuasan Data Simulai Siswa")
-st.markdown("Analisis berbasis data simulasi siswa")
+# =====================================================
+# SETUP DASHBOARD
+# =====================================================
+st.set_page_config(page_title="Analisis Kepuasan Pegawai", layout="wide")
+st.title("📌 Dashboard Evaluasi Kepuasan Layanan")
+st.caption("Visualisasi dan analisis data survei berbasis indikator")
 
-# ==========================================================
-# LOAD DATA
-# ==========================================================
-df = pd.read_excel("data_simulasi_50_siswa_20_soal.xlsx")
+# =====================================================
+# IMPORT DATA
+# =====================================================
+data = pd.read_excel("data_simulasi_50_siswa_20_soal_baru.xlsx")
 
-# Ambil indikator V1–V5 dan pastikan numerik
-indikator = df.iloc[:, 1:6].apply(pd.to_numeric, errors="coerce")
+# Ambil 5 indikator utama
+variabel = data.iloc[:, 1:6]
+variabel = variabel.apply(pd.to_numeric, errors="coerce")
 
-# ==========================================================
-# KPI KEPUASAN (IKM)
-# ==========================================================
-mean_scores = indikator.mean()
-ikm = (mean_scores.mean() / 5) * 100
+# =====================================================
+# HITUNG INDEKS KEPUASAN
+# =====================================================
+rata_indikator = variabel.mean()
+nilai_ikm = (rata_indikator.mean() / 5) * 100
 
-def kategori_ikm(x):
-    if x >= 81: return "Sangat Baik"
-    elif x >= 66: return "Baik"
-    elif x >= 51: return "Cukup"
-    else: return "Kurang"
+def klasifikasi(nilai):
+    kategori = {
+        (81,100): "Sangat Baik",
+        (66,80): "Baik",
+        (51,65): "Cukup",
+        (0,50): "Kurang"
+    }
+    for batas, label in kategori.items():
+        if batas[0] <= nilai <= batas[1]:
+            return label
 
-col1, col2, col3 = st.columns(3)
-col1.metric("📈 Indeks Kepuasan (IKM)", f"{ikm:.2f}%")
-col2.metric("🏷️ Kategori", kategori_ikm(ikm))
-col3.metric("👥 Responden", len(df))
-
-st.divider()
-
-# ==========================================================
-# 3️⃣ ANALISIS GAP
-# ==========================================================
-st.header("3️⃣ Analisis GAP (Expectation vs Performance)")
-
-gap_scores = 5 - mean_scores
-prioritas_gap = gap_scores.idxmax()
-
-fig_gap, ax_gap = plt.subplots(figsize=(6,4))
-ax_gap.bar(gap_scores.index, gap_scores.values, color=plt.cm.Set2(range(len(gap_scores))))
-ax_gap.set_ylabel("Nilai GAP")
-ax_gap.set_title("GAP Kepuasan per Indikator")
-ax_gap.grid(axis="y", linestyle="--", alpha=0.6)
-
-for i, v in enumerate(gap_scores.values):
-    ax_gap.text(i, v + 0.03, f"{v:.2f}", ha="center", fontweight="bold")
-
-st.pyplot(fig_gap)
-st.info(f"📌 Prioritas perbaikan tercepat: **{prioritas_gap}**")
+c1, c2, c3 = app.columns(3)
+c1.metric("IKM (%)", f"{nilai_ikm:.2f}")
+c2.metric("Kategori Mutu", klasifikasi(nilai_ikm))
+c3.metric("Jumlah Responden", data.shape[0])
 
 st.divider()
 
-# ==========================================================
-# 4️⃣ ANALISIS KORELASI
-# ==========================================================
-st.header("4️⃣ Korelasi Antar Indikator")
+# =====================================================
+# ANALISIS SELISIH (GAP)
+# =====================================================
+st.subheader("Analisis Selisih Kepuasan")
 
-corr = indikator.corr()
+selisih = 5 - rata_indikator
+indikator_prioritas = selisih.sort_values(ascending=False).index[0]
 
-fig_corr, ax_corr = plt.subplots(figsize=(6,5))
-im = ax_corr.imshow(corr, cmap="coolwarm", vmin=-1, vmax=1)
-plt.colorbar(im, ax=ax_corr)
+fig1, ax1 = plt.subplots()
+ax1.bar(selisih.index, selisih.values)
+ax1.set_title("Selisih Skor Tiap Indikator")
+ax1.set_ylabel("Nilai Selisih")
+ax1.tick_params(axis='x', rotation=45)
 
-ax_corr.set_xticks(range(len(corr.columns)))
-ax_corr.set_yticks(range(len(corr.columns)))
-ax_corr.set_xticklabels(corr.columns, rotation=45, ha="right")
-ax_corr.set_yticklabels(corr.columns)
-
-for i in range(len(corr)):
-    for j in range(len(corr)):
-        ax_corr.text(j, i, f"{corr.iloc[i, j]:.2f}", ha="center", va="center")
-
-ax_corr.set_title("Heatmap Korelasi Pearson")
-st.pyplot(fig_corr)
-
-corr_v5 = corr.iloc[:-1, -1].sort_values(ascending=False)
-st.subheader("📊 Ranking Faktor Berpengaruh")
-st.dataframe(corr_v5.to_frame("Koefisien Korelasi"))
+st.pyplot(fig1)
+st.warning(f"Indikator prioritas peningkatan: *{indikator_prioritas}*")
 
 st.divider()
 
-# ==========================================================
-# 5️⃣ ANALISIS REGRESI
-# ==========================================================
-st.header("5️⃣ Analisis Regresi Linear Berganda")
+# =====================================================
+# ANALISIS HUBUNGAN (KORELASI)
+# =====================================================
+st.subheader("Analisis Hubungan Antar Variabel")
 
-X = sm.add_constant(indikator.iloc[:, 0:4])
-y = indikator.iloc[:, 4]
+mat_korelasi = variabel.corr()
 
-model = sm.OLS(y, X, missing="drop").fit()
+fig2, ax2 = plt.subplots()
+heat = ax2.imshow(mat_korelasi, cmap="viridis")
+plt.colorbar(heat)
 
-coef = model.params[1:]
-r2 = model.rsquared
+ax2.set_xticks(range(len(mat_korelasi.columns)))
+ax2.set_yticks(range(len(mat_korelasi.columns)))
+ax2.set_xticklabels(mat_korelasi.columns, rotation=45)
+ax2.set_yticklabels(mat_korelasi.columns)
 
-fig_reg, ax_reg = plt.subplots(figsize=(6,4))
-ax_reg.bar(coef.index, coef.values, color="#3498db")
-ax_reg.axhline(0, linestyle="--", color="black")
-ax_reg.set_title("Koefisien Regresi")
+st.pyplot(fig2)
 
-st.pyplot(fig_reg)
-st.info(f"📈 Nilai R²: **{r2:.2f}**")
-st.success(f"🔑 Faktor dominan: **{coef.abs().idxmax()}**")
+ranking = mat_korelasi.iloc[:-1, -1].sort_values(ascending=False)
+st.dataframe(ranking.to_frame("Korelasi terhadap Indikator Akhir"))
 
 st.divider()
 
-# ==========================================================
-# 6️⃣ SEGMENTASI KEPUASAN (FIX PALING AMAN)
-# ==========================================================
-st.header("6️⃣ Segmentasi Kepuasan Pegawai")
+# =====================================================
+# ANALISIS REGRESI
+# =====================================================
+app.subheader("Model Regresi Linear")
 
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(indikator.fillna(indikator.mean()))
+X = stats.add_constant(variabel.iloc[:, 0:4])
+Y = variabel.iloc[:, 4]
 
-kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
-cluster_label = kmeans.fit_predict(X_scaled)
+regresi = stats.OLS(Y, X).fit()
 
-# 🔥 GROUPBY PALING AMAN (HANYA DATA NUMERIK)
-indikator_cluster = indikator.copy()
-indikator_cluster["Cluster"] = cluster_label
+koef = regresi.params[1:]
+nilai_r2 = regresi.rsquared
 
-cluster_mean = indikator_cluster.groupby("Cluster").mean()
-cluster_mean = cluster_mean.sort_values(by=indikator.columns[-1], ascending=False)
+fig3, ax3 = plt.subplots()
+ax3.bar(koef.index, koef.values)
+ax3.axhline(0)
+ax3.set_title("Nilai Koefisien Regresi")
 
-cluster_mean["Segment"] = ["Sangat Puas", "Cukup Puas", "Tidak Puas"]
+st.pyplot(fig3)
+st.info(f"Koefisien Determinasi (R²): {nilai_r2:.3f}")
+st.success(f"Variabel paling berpengaruh: {koef.abs().idxmax()}")
 
-# Radar Chart
-labels = indikator.columns.tolist()
-angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist()
-angles += angles[:1]
+st.divider()
 
-fig_rad = plt.figure(figsize=(6,6))
-ax_rad = plt.subplot(polar=True)
+# =====================================================
+# SEGMENTASI RESPONDEN (CLUSTERING)
+# =====================================================
+st.subheader("Segmentasi Kepuasan Pegawai")
 
-colors = ["#2ecc71", "#f1c40f", "#e74c3c"]
+normalisasi = StandardScaler()
+data_scaled = normalisasi.fit_transform(variabel.fillna(variabel.mean()))
 
-for i, row in cluster_mean.iterrows():
-    values = row[labels].tolist() + [row[labels].tolist()[0]]
-    ax_rad.plot(angles, values, label=row["Segment"], color=colors[i])
-    ax_rad.fill(angles, values, alpha=0.25)
+model_cluster = KMeans(n_clusters=3, random_state=10)
+hasil_cluster = model_cluster.fit_predict(data_scaled)
 
-ax_rad.set_thetagrids(np.degrees(angles[:-1]), labels)
-ax_rad.set_ylim(0, 5)
-ax_rad.set_title("Radar Segmentasi Kepuasan")
-ax_rad.legend(loc="upper right")
+df_cluster = variabel.copy()
+df_cluster["Kelompok"] = hasil_cluster
 
-st.pyplot(fig_rad)
+rata_cluster = df_cluster.groupby("Kelompok").mean()
 
-st.success("📌 Segmentasi berhasil – siap untuk rekomendasi kebijakan")
+st.dataframe(rata_cluster)
 
-
+st.success("Segmentasi selesai dilakukan.")
