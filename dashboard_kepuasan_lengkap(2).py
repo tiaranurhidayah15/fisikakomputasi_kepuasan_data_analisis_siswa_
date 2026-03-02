@@ -9,14 +9,14 @@ from sklearn.preprocessing import StandardScaler
 # ==========================================================
 # KONFIGURASI HALAMAN
 # ==========================================================
-st.set_page_config(page_title="Dashboard Kepuasan Pegawai", layout="wide")
-st.title("📊 Dashboard Mini Kepuasan Layanan Kepegawaian")
-st.markdown("Analisis berbasis data untuk mendukung rekomendasi kebijakan")
+st.set_page_config(page_title="Dashboard Simulasi siswa", layout="wide")
+st.title("📊 Dashboard Mini Kepuasan Data Simulai Siswa")
+st.markdown("Analisis berbasis data simulasi siswa")
 
 # ==========================================================
 # LOAD DATA
 # ==========================================================
-df = pd.read_excel("Data_Survei_Kepuasan_Layanan_Kepegawaian.xlsx")
+df = pd.read_excel("data_simulasi_50_siswa_20_soal.xlsx")
 
 # Ambil indikator V1–V5 dan pastikan numerik
 indikator = df.iloc[:, 1:6].apply(pd.to_numeric, errors="coerce")
@@ -158,4 +158,5 @@ ax_rad.legend(loc="upper right")
 st.pyplot(fig_rad)
 
 st.success("📌 Segmentasi berhasil – siap untuk rekomendasi kebijakan")
+
 
